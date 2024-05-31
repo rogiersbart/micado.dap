@@ -1,0 +1,569 @@
+---
+title: "The {micado.dap} R package"
+subtitle: Stand-alone version and HTTP API of the MICADO data analysis pipeline
+date: 2022-12-22
+author:
+  - name: Eric Laloy
+    orcid: 0000-0002-4788-3272
+    email: eric.laloy@sckcen.be
+    affiliations:
+      - ref: sckcen
+  - name: Bart Rogiers
+    orcid: 0000-0002-8836-0988
+    email: bart.rogiers@sckcen.be
+    url: https://rogiersbart.github.io
+    affiliations:
+      - ref: sckcen
+affiliations:
+  - id: sckcen
+    name: SCK CEN
+    address: Boeretang 200
+    city: Mol
+    country: Belgium
+    url: https://www.sckcen.be/en
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    toc-title: Contents
+    highlight-style: zenburn
+    df-print: tibble
+    code-link: false
+    embed-resources: true
+    mainfont: Segoe UI
+    monofont: Consolas
+  docx:
+    toc: true
+    toc-depth: 2
+    toc-title: Contents
+    reference-doc: template.docx
+    highlight-style: zenburn
+    df-print: tibble
+title-block-banner: "#212529"
+title-block-banner-color: "#ccc"
+number-sections: true
+reference-location: margin
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(tibble)
+```
+
+This is the technical user manual for the
+[MICADO](https://www.micado-project.eu/) data analysis pipeline (DAP), which has
+taken the form of an [R](https://www.r-project.org/) package. All scientific
+details of the implemented probabilistic models will be provided in a
+corresponding journal paper^[Tentatively titled: "First steps towards
+productionizing probabilistic radwaste characterization".] that is in
+preparation.
+
+# The R package
+
+A binary version of the {micado.dap} R package is distributed as a `.zip`
+archive, together with this HTML manual. You do not need to unpack the archive,
+as you can install it from your R console as follows:
+
+```{r}
+#| label: install
+#| eval: false
+if (!require(pak)) install.packages("pak")
+pak::pak("local::/path/to/micado.dap_0.2.0.zip")
+```
+
+where `/path/to/micado.dap_0.2.0.zip` is a relative or absolute path to the
+file. This does require a recent version of R (>= 4.1.0), and the R developer
+toolchain for windows
+[Rtools42](https://cran.r-project.org/bin/windows/Rtools/rtools42/rtools.html).
+Installing the package will also install the required dependencies from
+[CRAN](https://cran.r-project.org/) and [GitHub](https://github.com/), if an
+internet connection is available. Once this has completed successfully, the
+package can be loaded and attached, so it is ready for use, with the following:
+
+```{r}
+#| label: library
+library(micado.dap)
+```
+
+This induces a start-up message to appear, which includes the package version
+number, as well as a copyright notice.
+
+::: {.callout-note}
+The MICADO DAP is compiled for a 64-bit Windows operating system. In theory, it
+is possible to use the package on other platforms, but a different package
+binary would have to be created in that case, and the
+[Stan](https://mc-stan.org/) models would have to be recompiled as well. This
+has not been tested.
+:::
+
+# The measurement data
+
+The MICADO DAP has been targeting probabilistic interpretation of two potential
+waste streams, or so-called "virtual cases", that are referred to as "Virtual
+Case 1" (VC1) and "Virtual Case 3" (VC3). While the data related to the
+different measurement technologies and their respective efficiencies are also
+part of the package, only the "true" measurement results are exposed to the
+package user. These are available as R objects with a `vc1_` or `vc3_` prefix
+indicating the targeted waste stream, and `gamma`, `pncc`, or `ancc` as suffix
+indicating the measurement technology:
+
+```{r}
+#| label: data
+vc1_gamma
+vc1_pncc
+vc1_ancc
+vc3_gamma
+vc3_pncc
+```
+
+# The probabilistic models
+
+The probabilistic models part of the MICADO DAP can be invoked in different
+ways, depending on where they should run, and how a request is made:
+
+* A local R client can access the `vc1_model()` and `vc3_model()` R functions
+  directly, and there is no need for an HTTP API,
+* For remote use, the DAP can be started on the server with `dap_start()`, so
+  that
+  * A remote R client can access the HTTP API through `dap_request()`, and
+  * A remote HTTP client can directly send HTTP requests to the server.
+
+## Local R client
+
+Local use of the MICADO DAP, without the need for an HTTP API, is only possible
+from R. The `vc1_model()` and `vc3_model()` functions accept `gamma`, `pncc` and
+`ancc` (only for VC1) data, a `legacy` flag indicating whether detailed 
+knowledge on the Plutonium isotopic vector is present or not, and a number of 
+`cores` to parallellize the calculations:
+
+```{r}
+#| label: models
+#| cache: true
+cores <- 4
+vc1_result <- vc1_model(
+  gamma = vc1_gamma,
+  pncc = vc1_pncc,
+  ancc = vc1_ancc,
+  cores = cores
+)
+vc1_result_legacy <- vc1_model(
+  gamma = vc1_gamma,
+  pncc = vc1_pncc,
+  ancc = vc1_ancc,
+  cores = cores,
+  legacy = TRUE
+)
+vc3_result <- vc3_model(
+  gamma = vc3_gamma,
+  pncc = vc3_pncc,
+  cores = cores
+)
+vc3_result_legacy <- vc3_model(
+  gamma = vc3_gamma,
+  pncc = vc3_pncc,
+  cores = cores,
+  legacy = TRUE
+)
+```
+
+The corresponding result objects have the following structure:
+
+```{r}
+#| label: results
+str(vc1_result, give.attr = FALSE)
+vc1_result$masses # mean, sd, q025, q975 for all nuclides
+vc1_result$diagnostics # converged: whether all rhat < 1.02
+```
+
+The `masses` data frame contains the mean and standard deviation of the
+different radionuclide masses, and the 0.025 and 0.975 quantiles. The
+`diagnostics` list contains:
+
+- `converged`: a logical flag indicating whether all parameter Rhat values were
+  below a threshold of 1.02, and sampling from the posterior has converged,
+- `p_gamma`: a posterior predictive p-value for the gross counts, based on the $\chi^2$-discrepancy,
+  which, if close to zero, indicates that at least one of the observed data
+  points is really in a tail of its corresponding posterior predictive distribution (*i.e.* we have outliers, or our model may not be very adequate for interpreting the data at hand),
+  while if close to one, it indicates that the fit to the data is very good, and
+  we may even be overestimating uncertainty,
+- `p_pncc`: the posterior predictive p-value for the PNCC reals per second
+- `p_ancc`: the posterior predictive p-value for the ANCC counts per second
+
+When using the R client, the results come with additional attributes: The
+`CmdStanMCMC` model fit object, and the JSON required for DigiWaste Bridge. They
+can be obtained using `get_fit()` and `get_json()` respectively. The
+fit object allows for more in depth investigation of the probabilistic model
+run, *e.g.*:
+
+```{r}
+#| label: fit
+#| cache: true
+get_fit(vc3_result)$time()
+```
+
+Similarly, the JSON required for DigiWaste Bridge can be accessed through:
+
+```{r}
+#| label: json
+get_json(vc3_result)
+```
+
+This JSON can be written to disk for the manual uploads as follows:
+
+```{r}
+#| label: bridge
+write_json <- \(x, y) get_json(x) |> writeLines(y, useBytes = TRUE)
+vc1_result |> write_json("json/vc1_result.json")
+vc1_result_legacy |> write_json("json/vc1_result_legacy.json")
+vc3_result |> write_json("json/vc3_result.json")
+vc3_result_legacy |> write_json("json/vc3_result_legacy.json")
+```
+
+## Remote R client
+
+Remote use is made possible by an HTTP API, for which the R package has a set
+of wrapper functions, all using the `dap_` prefix. On the machine that should
+serve the MICADO DAP, the HTTP API can be started with:
+
+```{r}
+#| label: start
+dap_start(cores = 4)
+```
+
+where the number of cores dedicated to the MICADO DAP can be specified. Only
+values 1 (run all chains sequentially), 2 (run 2 times 2 MCMC chains in
+parallel) and 4 (run 4 MCMC chains in parallel) make sense here. On the client,
+a request can then be submitted as follows:
+
+```{r}
+#| label: request
+#| cache: true
+result <- dap_request(
+  gamma = vc3_gamma,
+  pncc = vc3_pncc,
+  case = "vc3",
+  ip = "localhost"
+)
+str(result, give.attr = FALSE)
+```
+
+where the IP address should be that of the server. Currently, port 8000 is
+always used. The DAP server can always be terminated explicitly by:
+
+```{r}
+#| label: stop
+dap_stop()
+```
+
+When using `dap_request()`, the results are always returned in an R-native
+format. When submitting requests directly through an HTTP client, the preferred
+DigiWaste JSON structure is returned instead.
+
+::: {.callout-warning}
+Note that we just use `ip = "localhost"` here for demonstration purposes. In 
+practice, when using the same machine as R client and server, it makes more
+sense to use the R API (as explained in "Local R client"), than to go through
+the HTTP API.
+:::
+
+## Remote HTTP client
+
+The original idea was that the DigiWaste system would send HTTP requests to the
+MICADO DAP, with a JSON string containing the required inputs, and accepting the
+outputs resulting from the probabilistic interpretation of the measurement data.
+We illustrate here how this would work when doing an HTTP request directly,
+rather than using the above R client API (which does the same in the background,
+but receives the results in a different format).
+
+First we again need to start the server:
+
+```{r}
+dap_start(cores = 4)
+```
+
+Then we can construct the required JSON:
+
+```{r}
+request_json <- jsonlite::toJSON(
+  list(
+    gamma = vc3_gamma,
+    pncc = vc3_pncc,
+    ancc = NULL,
+    case = "vc3",
+    legacy = FALSE
+  ),
+  digits = NA,
+  pretty = TRUE
+)
+```
+
+In appendix we provide the full JSON body to make clear what structure is
+required. Finally we can submit the request, and retrieve the DAP results, again
+in JSON format:
+
+```{r}
+#| label: post
+#| cache: true
+result <- httr::POST("http://localhost:8000/dap", body = request_json) |>
+  httr::content()
+dap_stop()
+cat(result)
+```
+
+# Appendix {.unnumbered}
+
+## HTTP request JSON body {.unnumbered}
+
+```{r}
+#| label: complete-json-vc1-all-data
+#| code-fold: true
+#| code-summary: "VC1"
+jsonlite::toJSON(
+  list(
+    gamma = vc1_gamma,
+    pncc = vc1_pncc,
+    ancc = vc1_ancc,
+    case = "vc1",
+    legacy = FALSE
+  ),
+  digits = NA,
+  pretty = TRUE
+)
+```
+
+```{r}
+#| label: complete-json-vc3-all-data
+#| code-fold: true
+#| code-summary: "VC3"
+jsonlite::toJSON(
+  list(
+    gamma = vc3_gamma,
+    pncc = vc3_pncc,
+    ancc = NULL,
+    case = "vc3",
+    legacy = FALSE
+  ),
+  digits = NA,
+  pretty = TRUE
+)
+```
+
+```{r}
+#| label: test-vc1-p-values
+#| eval: false
+#| echo: false
+
+library(tidyverse)
+library(micado.dap)
+vc1_result <- vc1_model(
+  gamma = vc1_gamma,
+  cores = 2
+)
+vc1_result$diagnostics
+vc1_fit <- get_fit(vc1_result)
+df <- vc1_fit$draws("ppr_gross", format = "df")
+background <- vc1_fit$draws("bckg_st", format = "df")
+gross <- vc1_fit$draws("sim_gross", format = "df")
+plot(background[[1]] * sqrt(vc1_gamma$background[[1]]) + vc1_gamma$background[[1]], gross[[1]])
+
+background |>
+  pivot_longer(-starts_with(".")) |>
+  ggplot() + 
+  aes(value, name) + 
+  geom_violin()
+
+df |>
+  pivot_longer(-starts_with(".")) |>
+  ggplot() +
+  aes(value, name) +
+  geom_violin()
+
+# modify & compile again?
+
+library(cmdstanr)
+vc1 <- cmdstan_model("inst/model/vc1.stan", compile = FALSE)
+vc1$format(overwrite_file = TRUE, canonicalize = TRUE)
+vc1$compile()
+
+
+eric <- read_rds("//scksrv1/simulat/elaloy/MICADO/Bart/sample.rds")
+df <- eric$postp_net
+for (i in 1:85) df[,i] <- df[,i] - eric$obs_net[i]
+test <- df |> as_tibble(.name_repair = "unique") |> mutate_all(score_rank)
+test2 <- df |> as_tibble(.name_repair = "unique") |> summarize_all(score_zero)
+
+mean(rowSums(test2^2) < rowSums(test^2))
+rowSums(test^2) |> hist(xlim = c(40, 150))
+rowSums(test2^2) |> abline(v = _)
+
+
+
+
+
+
+
+
+eric <- read_rds("//scksrv1/simulat/elaloy/MICADO/Bart/sample.rds")
+
+pvalue_old <- function(pp, obs, sample = FALSE) {
+  if (sample) pp[] <- rpois(length(pp), pp)
+  percent_rank <- function(x) rank(x) / length(x) - 1 / length(x) / 2
+  score_rank <- function(x) qnorm(percent_rank(x))
+  percent_zero <- function(x) ecdf(x)(0)
+  score_zero <- function(x) qnorm(percent_zero(x))
+  pp_scores <- pp
+  obs_scores <- obs
+  for (i in 1:85) {
+    pp[, i] <- pp[, i] - obs[i]
+    pp_scores[, i] <- score_rank(pp[, i])
+    obs_scores[i] <- score_zero(pp[, i])
+  }
+  mean(rowSums(pp_scores^2) > sum(obs_scores^2))
+}
+pvalue_new <- function(pp, obs, sample = FALSE) {
+  if (sample) pp[] <- rpois(length(pp), pp)
+  score_std <- function(x) (x - mean(x))/sd(x)
+  score_zero <- function(x) (0 - mean(x))/sd(x)
+  pp_scores <- pp
+  obs_scores <- obs
+  for (i in 1:85) {
+    pp[, i] <- pp[, i] - obs[i]
+    pp_scores[, i] <- score_std(pp[, i])
+    obs_scores[i] <- score_zero(pp[, i])
+  }
+  mean(rowSums(pp_scores^2) > sum(obs_scores^2))
+}
+CalcPval = function(sim,obs,string_dist){
+  rdist <- get(string_dist)
+  Ng<-dim(sim)[2]
+  Ns0<-dim(sim)[1]
+  nz<-1
+  Ns<-Ns0*nz
+  pp_sim<-array(data=numeric(Ns*Ng),dim=c(Ns,Ng))
+  for (i in 1:Ns0){
+    q<-array(data=numeric(nz*Ng),dim=c(nz,Ng))
+    for(j in 1:nz){
+      q[j,]<-rdist(Ng,sim[i,])
+    }
+    istart<-(i*nz-nz)+1
+    iend<-i*nz
+    pp_sim[istart:iend,]<-q
+  }
+  nm<-dim(pp_sim)[2]
+  
+  p_gt_obs<-numeric(nm)
+
+  for(i in 1:nm){
+    p_gt_obs[i] <- mean(pp_sim[,i] > obs[i])
+  }
+
+  p_gt_obs[p_gt_obs==0]<-1e-9
+  p_gt_obs[p_gt_obs==1]<-1-1e-9
+
+  e_s_obs = qnorm(p_gt_obs, lower.tail = FALSE)
+
+  # compute e_s_ref
+  Ng<-dim(sim)[2]
+  Ns0<-dim(sim)[1]
+  #nz<-1
+  nrep<-100
+  Ns<-Ns0*nz
+  e_s_rep = array(data=numeric(nrep*Ng),dim=c(nrep,Ng))
+  for (k in 1:nrep){
+    ii = sample.int(Ns0, size = 1)
+    obs_ = rdist(Ng,sim[ii,])
+    pp_sim_<-array(data=numeric(Ns*Ng),dim=c(Ns,Ng))
+    for (i in 1:Ns0){
+      q<-array(data=numeric(nz*Ng),dim=c(nz,Ng))
+      for(j in 1:nz){
+        q[j,]<-rpois(Ng,sim[i,])
+      }
+      istart<-(i*nz-nz)+1
+      iend<-i*nz
+      pp_sim_[istart:iend,]<-q
+    }
+    p_gt_obs_<-numeric(nm)
+    for(i in 1:nm){
+      p_gt_obs_[i] <- mean(pp_sim_[,i] > obs_[i])
+    }
+    p_gt_obs_[p_gt_obs_==0]<-1e-9
+    p_gt_obs_[p_gt_obs_==1]<-1-1e-9
+    e_s_rep[k,] = qnorm(p_gt_obs_, lower.tail = FALSE)
+  }
+
+  pval = mean(rowSums(e_s_rep^2) > sum(e_s_obs^2))
+
+
+  return(list(pval=pval,pp_sim=pp_sim))
+}
+CalcPval2 = function(sim,obs,string_dist){  #
+  rdist <- get(string_dist)
+  Ng<-dim(sim)[2]
+  Ns0<-dim(sim)[1]
+  nz<-1
+  Ns<-Ns0*nz
+  pp_sim<-array(data=numeric(Ns*Ng),dim=c(Ns,Ng))
+  for (i in 1:Ns0){
+    q<-array(data=numeric(nz*Ng),dim=c(nz,Ng))
+    for(j in 1:nz){
+      q[j,]<-rdist(Ng,sim[i,])
+    }
+    istart<-(i*nz-nz)+1
+    iend<-i*nz
+    pp_sim[istart:iend,]<-q
+  }
+  nm<-dim(pp_sim)[2]
+
+  pp_mean<-colMeans(pp_sim) #apply(pp_sim,2,mean)
+  pp_sd<-apply(pp_sim,2,sd)
+  pp_sim_standard<-(pp_sim-matrix(pp_mean, nrow=Ns0, ncol=length(pp_mean), byrow=TRUE))/matrix(pp_sd, nrow=Ns0, ncol=length(pp_sd), byrow=TRUE)
+  obs_standard<-(obs-pp_mean)/pp_sd
+  e_s_obs<-obs_standard
+
+  # compute e_s_ref
+  Ng<-dim(sim)[2]
+  Ns0<-dim(sim)[1]
+  #nz<-1
+  nrep<-100
+  Ns<-Ns0*nz
+  e_s_rep = array(data=numeric(nrep*Ng),dim=c(nrep,Ng))
+  for (k in 1:nrep){
+    ii = sample.int(Ns0, size = 1)
+    obs_ = rdist(Ng,sim[ii,])
+    pp_sim_<-array(data=numeric(Ns*Ng),dim=c(Ns,Ng))
+    for (i in 1:Ns0){
+      q<-array(data=numeric(nz*Ng),dim=c(nz,Ng))
+      for(j in 1:nz){
+        q[j,]<-rpois(Ng,sim[i,])
+      }
+      istart<-(i*nz-nz)+1
+      iend<-i*nz
+      pp_sim_[istart:iend,]<-q
+    }
+    pp_mean_<-colMeans(pp_sim_)
+    pp_sd_<-apply(pp_sim_,2,sd)
+    pp_sim_standard_<-(pp_sim_-matrix(pp_mean_, nrow=Ns0, ncol=length(pp_mean_), byrow=TRUE))/matrix(pp_sd_, nrow=Ns0, ncol=length(pp_sd_), byrow=TRUE)
+    obs_standard_<-(obs_-pp_mean_)/pp_sd_
+    e_s_rep[k,]<-obs_standard_
+
+  }
+
+  pval = mean(rowSums(e_s_rep^2) > sum(e_s_obs^2))
+
+  return(list(pval=pval,pp_sim=pp_sim))
+}
+
+pvalue_old(eric$sim_net, eric$obs_net, TRUE)
+CalcPval(eric$sim_net, eric$obs_net, "rpois")$pval
+pvalue_new(eric$sim_net, eric$obs_net, TRUE)
+CalcPval2(eric$sim_net, eric$obs_net, "rpois")$pval
+
+
+
+```
+

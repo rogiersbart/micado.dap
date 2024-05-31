@@ -1,0 +1,54 @@
+Package: micado.dap
+Type: Package
+Title: MICADO Data Analysis Pipeline
+Version: 0.2.1
+Authors@R:
+    c(
+      person(
+        "Eric",
+        "Laloy",
+        email = "eric.laloy@sckcen.be",
+        role = c("aut"),
+        comment = c(
+          ORCID = "0000-0002-4788-3272"
+        )
+      ),
+      person(
+        "Bart",
+        "Rogiers",
+        email = "bart.rogiers@sckcen.be",
+        role = c("aut", "cre"),
+        comment = c(
+          ORCID = "0000-0002-8836-0988",
+          url = "<https://rogiersbart.github.io>"
+        )
+      ),
+      person("SCK CEN", role = "cph")
+    )
+Description: Stand-alone version and HTTP API of the MICADO data analysis
+    pipeline
+License: file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+Biarch: true
+Depends: 
+    R (>= 4.1.0)
+Imports: 
+    cmdstanr (>= 0.5.3),
+    dplyr,
+    purrr,
+    rui (>= 0.2.0),
+    tibble,
+    tidyr,
+    callr,
+    plumber,
+    httr
+Remotes: 
+    stan-dev/cmdstanr,
+    rogiersbart/rui
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.2.3
