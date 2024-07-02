@@ -20,7 +20,7 @@ dap_start <- function(cores = 1) {
     ),
     "micado.dap"
   )
-  rui::console("v The MICADO DAP server was successfully started.")
+  std::err("v The MICADO DAP server was successfully started.")
 }
 
 #' Stop the MICADO DAP server
@@ -34,9 +34,9 @@ dap_stop <- function() {
   kill <- micado.dap:::server$kill()
   if (kill) {
     assignInNamespace("server", NULL, "micado.dap")
-    rui::console("v The MIDACO DAP server was successfully terminated.")
+    std::err("v The MIDACO DAP server was successfully terminated.")
   } else {
-    rui::console("x The MIDACO DAP server seems unavailable.")
+    std::err("x The MIDACO DAP server seems unavailable.")
   }
 }
 

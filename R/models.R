@@ -16,19 +16,19 @@
 #' @export
 #' @seealso [`vc3_model()`], [`get_fit()`], [`get_json()`]
 vc1_model <- function(gamma = NULL, pncc = NULL, ancc = NULL, legacy = FALSE, cores = 1, quiet = TRUE) {
-  on.exit(rui::console("x"))
-  rui::console("~ Preparing data")
+  on.exit(std::err("x"))
+  std::err("~ Preparing data")
   if (! Sys.getenv("MICADO.DAP.CORES") == "") cores <- as.numeric(Sys.getenv("MICADO.DAP.CORES"))
   model_data <- prep(gamma, pncc, ancc, vc = 1, case = if (legacy) "mysterious" else "realistic")
-  rui::console("v")
-  rui::console("~ Loading model")
+  std::err("v")
+  std::err("~ Loading model")
   model_vc1 <- cmdstanr::cmdstan_model(
     # stan_file = system.file("model/vc1.stan", package = "micado.dap"),
     exe_file = system.file("model/vc1.exe", package = "micado.dap"),
     compile = FALSE
   )
-  rui::console("v")
-  rui::console("~ Sampling")
+  std::err("v")
+  std::err("~ Sampling")
   capture <- if (quiet) capture.output else I
   capture(
     model_fit <- model_vc1$sample(
@@ -43,8 +43,8 @@ vc1_model <- function(gamma = NULL, pncc = NULL, ancc = NULL, legacy = FALSE, co
       refresh = 0
     )
   )
-  rui::console("v")
-  rui::console("~ Postprocessing")
+  std::err("v")
+  std::err("~ Postprocessing")
   masses <- model_fit$draws(
     c("totpu", "am241r", paste0("puv[", 1:5, "]")),
     format = "df"
@@ -122,7 +122,7 @@ vc1_model <- function(gamma = NULL, pncc = NULL, ancc = NULL, legacy = FALSE, co
   )
   attr(output, "fit") <- model_fit
   attr(output, "json") <- to_json(output)
-  rui::console("v")
+  std::err("v")
   output
 }
 
@@ -134,19 +134,19 @@ vc1_model <- function(gamma = NULL, pncc = NULL, ancc = NULL, legacy = FALSE, co
 #' @export
 #' @seealso [`vc1_model()`], [`get_fit()`], [`get_json()`]
 vc3_model <- function(gamma = NULL, pncc = NULL, legacy = FALSE, cores = 1, quiet = TRUE) {
-  on.exit(rui::console("x"))
-  rui::console("~ Preparing data")
+  on.exit(std::err("x"))
+  std::err("~ Preparing data")
   if (! Sys.getenv("MICADO.DAP.CORES") == "") cores <- as.numeric(Sys.getenv("MICADO.DAP.CORES"))
   model_data <- prep(gamma, pncc, vc = 3, case = if (legacy) "mysterious" else "realistic")
-  rui::console("v")
-  rui::console("~ Loading model")
+  std::err("v")
+  std::err("~ Loading model")
   model_vc3 <- cmdstanr::cmdstan_model(
     # stan_file = system.file("model/vc3.stan", package = "micado.dap"),
     exe_file = system.file("model/vc3.exe", package = "micado.dap"),
     compile = FALSE
   )
-  rui::console("v")
-  rui::console("~ Sampling")
+  std::err("v")
+  std::err("~ Sampling")
   capture <- if (quiet) capture.output else I
   capture(
     model_fit <- model_vc3$sample(
@@ -161,8 +161,8 @@ vc3_model <- function(gamma = NULL, pncc = NULL, legacy = FALSE, cores = 1, quie
       refresh = 0
     )
   )
-  rui::console("v")
-  rui::console("~ Postprocessing")
+  std::err("v")
+  std::err("~ Postprocessing")
   masses <- model_fit$draws(
     c("totpu", "am241r", paste0("puv[", 1:5, "]"), "co60", "ru106", "sb125", "cs134", "cs137", "eu154"),
     format = "df"
@@ -228,7 +228,7 @@ vc3_model <- function(gamma = NULL, pncc = NULL, legacy = FALSE, cores = 1, quie
   )
   attr(output, "fit") <- model_fit
   attr(output, "json") <- to_json(output)
-  rui::console("v")
+  std::err("v")
   output
 }
 

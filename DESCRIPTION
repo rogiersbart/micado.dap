@@ -38,7 +38,7 @@ Imports:
     cmdstanr (>= 0.5.3),
     dplyr,
     purrr,
-    rui (>= 0.2.0),
+    std,
     tibble,
     tidyr,
     callr,
@@ -46,7 +46,7 @@ Imports:
     httr
 Remotes: 
     stan-dev/cmdstanr,
-    rogiersbart/rui
+    rogiersbart/std
 Suggests: 
     knitr,
     rmarkdown
