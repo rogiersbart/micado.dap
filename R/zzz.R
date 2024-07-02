@@ -8,14 +8,6 @@
 .onLoad <- function(libname, pkgname) {
   if (is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE) |> suppressMessages())) {
     std::err("! CmdStan is not found.")
-  # FIXME issue with cmdstan installation?
-  #   std::err("~ Installing CmdStan")
-  #   cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
-  #   cmdstanr::install_cmdstan(quiet = TRUE)
-  #   if (is.null(cmdstanr::cmdstan_version(error_on_NA = FALSE))) {
-  #     std::err("x")
-  #   } else {
-  #     std::err("v")
-  #   }
+    std::err("i Try to follow {.href [these instructions](https://mc-stan.org/cmdstanr/articles/cmdstanr.html)} to set it up.")
   }
 }
