@@ -1,3 +1,9 @@
+# micado.dap 0.2.2
+
+* Use {std} instead of {rui}.
+* Fix issues with corrupt binary files in GH repo.
+* Avoid automatic install of {cmdstanr}, and point to the docs if not available.
+* Update manual with new installation instructions, and published paper.
 
 # micado.dap 0.2.1
 

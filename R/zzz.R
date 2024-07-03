@@ -1,7 +1,7 @@
 .onAttach <- function(libname, pkgname) {
   std::err("# {.href [MICADO](https://www.micado-project.eu/)} Data Analysis Pipeline")
   std::err("i R package version {packageVersion(\"micado.dap\")}.")
-  std::err("i Copyright 2022 {.href [SCK CEN](https://www.sckcen.be/en)}.")
+  std::err("i Copyright 2024 {.href [SCK CEN](https://www.sckcen.be/en)}.")
   std::err("i All rights reserved.")
   invisible()
 }

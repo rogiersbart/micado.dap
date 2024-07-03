@@ -40,6 +40,7 @@ vc1_model <- function(gamma = NULL, pncc = NULL, ancc = NULL, legacy = FALSE, co
       parallel_chains = cores,
       max_treedepth = if (legacy) 20 else 10,
       show_messages = !quiet,
+      show_exceptions = !quiet,
       refresh = 0
     )
   )
@@ -158,6 +159,7 @@ vc3_model <- function(gamma = NULL, pncc = NULL, legacy = FALSE, cores = 1, quie
       parallel_chains = cores,
       max_treedepth = if (legacy) 20 else 10,
       show_messages = !quiet,
+      show_exceptions = !quiet,
       refresh = 0
     )
   )
